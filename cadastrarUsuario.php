@@ -1,17 +1,16 @@
 <html lang="en">
 
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Cadastrar Usuário</title>
     <link rel="stylesheet" href="script.css"> <!-- Substitua 'styles.css' pelo caminho do seu arquivo CSS -->
 </head>
 
 <body>
     <div class="container">
         <h2>Cadastrar usuário</h2>
-        <form method="get" action="<?php echo $_SERVER['PHP_SELF']; ?>">
+        <form method="post" action="<?php echo $_SERVER['PHP_SELF']; ?>">
             <div class="input-group">
                 <label for="nome">Usuário:</label>
                 <input type="text" name="nome" id="nome" placeholder="Digite seu usuário" required>
@@ -21,7 +20,7 @@
                 <input type="password" name="senha" id="senha" placeholder="Digite sua senha" required>
             </div>
             <button class="button" name="ok" type="submit">Ok</button>
-            <a href="main.php" class="button-link">Login</a> <!-- Botão link para login.php -->
+            <a href="main.php" class="button-link">Login</a>
         </form>
     </div>
 </body>
@@ -29,15 +28,7 @@
 </html>
 
 <?php
-
-session_start(); // Iniciar a sessão no topo do arquivo PHP
-if (isset($_SESSION['message'])) {
-    echo "<script>
-alert('" . $_SESSION['
-    message '] . "');
-</script>";
-    unset($_SESSION['message']); // Limpar a mensagem após exibi-la
-}
+session_start();
 $servername = "localhost";
 $username = "root";
 $password = "";
@@ -50,35 +41,35 @@ if ($conn->connect_error) {
     die("Falha na conexão: " . $conn->connect_error);
 }
 
-// Verificar se o botão "Ok" foi pressionado
-if (isset($_GET['ok']) && isset($_GET['nome']) && isset($_GET['senha'])) {
-    $nome = $_GET['nome'];
-    $senha = $_GET['senha'];
+// Verificar se o formulário foi enviado
+if (isset($_POST['ok'])) {
+    $nome = $_POST['nome'];
+    $senha = password_hash($_POST['senha'], PASSWORD_DEFAULT); // Hash da senha
 
     // Verificar se o usuário já existe
-    $sql_select = "SELECT * FROM usuarios WHERE nome = '$nome'";
-    $result = $conn->query($sql_select);
+    $sql_select = "SELECT * FROM usuarios WHERE nome = ?";
+    $stmt = $conn->prepare($sql_select);
+    $stmt->bind_param("s", $nome);
+    $stmt->execute();
+    $result = $stmt->get_result();
 
     if ($result->num_rows > 0) {
-        $_SESSION['message'] = 'Usuario existente!';
+        $_SESSION['message'] = 'Usuário existente!';
         header("Location: " . $_SERVER['PHP_SELF']);
     } else {
-        $sql_insert = "INSERT INTO usuarios (nome, senha) VALUES ('$nome', '$senha')";
+        $sql_insert = "INSERT INTO usuarios (nome, senha) VALUES (?, ?)";
+        $stmt = $conn->prepare($sql_insert);
+        $stmt->bind_param("ss", $nome, $senha);
 
-        if ($conn->query($sql_insert) === TRUE) {
+        if ($stmt->execute()) {
             $_SESSION['message'] = 'Novo registro criado com sucesso!';
+            header("Location: main.php");
         } else {
-            $_SESSION['message'] = 'Erro: ' . $conn->error;
+            $_SESSION['message'] = 'Erro: ' . $stmt->error;
+            header("Location: " . $_SERVER['PHP_SELF']);
         }
-        header("Location: " . $_SERVER['PHP_SELF']);
-        exit;
     }
-
-
-
-    //
-
-    exit;
 }
 
+$conn->close();
 ?>
